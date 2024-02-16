@@ -4,7 +4,12 @@ from fastapi import APIRouter
 from dbs_assignment.config import settings
 
 router = APIRouter()
-# conn = psycopg2.connect()
+connection = psycopg2.connect(
+    host=settings.DATABASE_HOST,
+    database=settings.DATABASE_NAME,
+    user=settings.DATABASE_USER,
+    password=settings.DATABASE_PASSWORD
+)
 
 @router.get("/v1/hello")
 async def hello():
@@ -12,8 +17,11 @@ async def hello():
         'hello': settings.NAME
     }
 
-@router.get("/v1/test")
-async def test():
+@router.get("/v1/status")
+async def status():
+    cursor = connection.cursor()
+    cursor.execute("SELECT version();")
+    results = cursor.fetchone()
     return {
-        'test': settings.NAME
+        'version': results[0]
     }
