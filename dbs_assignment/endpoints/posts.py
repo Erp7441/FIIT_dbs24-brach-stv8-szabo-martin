@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter
 from dbs_assignment.utils import get_results_as_dict, get_connection
 
@@ -40,8 +42,15 @@ async def get_post_comments(post_id: int):
 
 
 @router.get("/v2/posts/")
-async def get_post_comments(duration: int, limit: int):
-    query = """
+async def posts_args(limit: int, duration: Optional[int] = None, query: Optional[str] = None):
+    if duration is not None:
+        return await get_solved_posts(duration, limit)
+    if query is not None:
+        return await search_for_posts(limit, query)
+
+
+async def get_solved_posts(duration: int, limit: int):
+    query = f"""
         WITH closed_posts_duration AS (
             SELECT id, round((extract(EPOCH from (closeddate - creationdate))::decimal / 60), 2) as duration
             FROM posts
@@ -51,9 +60,9 @@ async def get_post_comments(duration: int, limit: int):
         SELECT posts.id, creationdate, viewcount, lasteditdate, lastactivitydate, title, closeddate, duration
         FROM closed_posts_duration
         JOIN posts ON posts.id = closed_posts_duration.id
-        WHERE duration <= 5
+        WHERE duration <= {duration}
         ORDER BY creationdate DESC
-        LIMIT 2
+        LIMIT {limit}
     """
 
     connection = get_connection(settings)
@@ -66,10 +75,21 @@ async def get_post_comments(duration: int, limit: int):
         'items': results
     }
 
-@router.get("/v2/posts/")
-async def get_post_comments(limit: int, query: str):
-    sql_query = """
 
+async def search_for_posts(limit: int, query: str):
+    sql_query = f"""
+        WITH post_id_tags AS (
+            SELECT post_id, array_agg(tagname) as tags
+            FROM post_tags
+            JOIN tags ON post_tags.tag_id = tags.id
+            GROUP BY post_id
+        )
+        SELECT id, creationdate, viewcount, lasteditdate, lastactivitydate, title, body, answercount, closeddate, tags
+        FROM posts
+        JOIN post_id_tags ON post_id = posts.id
+        WHERE posts.title LIKE '%{query}%' OR posts.body LIKE '%{query}%'
+        ORDER BY creationdate DESC
+        LIMIT {limit}
     """
 
     connection = get_connection(settings)

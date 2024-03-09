@@ -27,7 +27,7 @@ async def tag_stats(tag_name: str):
             JOIN posts p ON pt.post_id = p.id  -- Aby sme vedelit priradit post k post_id
             JOIN weekday_counts wc ON trim(to_char(p.creationdate, 'day')) = wc.weekday  -- Spojenie total count tabulky na
         -- tyzdnoch
-        WHERE t.tagname = 'linux' -- odfiltrovanie tagu
+        WHERE t.tagname = {tag_name} -- odfiltrovanie tagu
         GROUP BY trim(to_char(p.creationdate, 'day')), t.tagname, wc.total_count
         ORDER BY
             CASE
