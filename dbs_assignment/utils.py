@@ -1,8 +1,12 @@
 import psycopg2
 
+def get_results_as_kev_val_pair(cursor):
+    results = cursor.fetchall()
+    return {result[0]: result[1] for result in results}
 
 def get_results_as_dict(cursor):
-    return [dict(zip([desc[0] for desc in cursor.description], row)) for row in cursor.fetchall()]
+    results = cursor.fetchall()
+    return [dict(zip([desc[0] for desc in cursor.description], row)) for row in results]
 
 def get_connection(settings):
     return psycopg2.connect(
