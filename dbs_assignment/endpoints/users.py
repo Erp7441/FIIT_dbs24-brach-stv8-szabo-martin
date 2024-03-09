@@ -7,27 +7,24 @@ router = APIRouter()
 
 
 @router.get("/v2/users/{user_id}/users")
+@router.get("/v2/users/{user_id}/friends")
 async def get_users_friends(user_id: int):
 
-
     query = f"""
-SELECT *
-FROM users -- Vyber userov
-WHERE id IN (
-    SELECT userid
-    FROM comments
-    WHERE postid IN ( -- Ktory komentovali
-        SELECT id
-        FROM posts
-        WHERE posts.owneruserid = 1076348 -- Na poste vytvorenym userom s ID (parentid)
-    )
-    GROUP BY userid
-)
-ORDER BY users.creationdate
-"""
-
-    if user_id is None:
-        return {"error": "user_id is required"}
+        SELECT *
+        FROM users -- Vyber userov
+        WHERE id IN (
+            SELECT userid
+            FROM comments
+            WHERE postid IN ( -- Ktory komentovali
+                SELECT id
+                FROM posts
+                WHERE posts.owneruserid = 1076348 -- Na poste vytvorenym userom s ID (parentid)
+            )
+            GROUP BY userid
+        )
+        ORDER BY users.creationdate
+    """
 
     connection = get_connection(settings)
     cursor = connection.cursor()
