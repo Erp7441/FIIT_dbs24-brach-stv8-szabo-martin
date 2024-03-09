@@ -16,27 +16,29 @@ async def get_users_friends(user_id: int):
             displayname,
             (to_char(lastaccessdate::TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF') ) AS lastaccessdate,
             websiteurl, location, aboutme, views, upvotes, downvotes, profileimageurl, age, accountid
-        FROM users -- Vyber userov
+        FROM users
+        -- Kde user_id sa nachadza v subquery userov ktory komentovali na poste ktory bol vytvoreny hladanym pouzivatelom
         WHERE id IN (
+            -- Ziskaj userov ktory komentovali na poste ktory bol vytvoreny hladanym pouzivatelom
             SELECT DISTINCT userid
             FROM comments
-            WHERE postid IN ( -- Ktory komentovali
+            WHERE postid IN (
                 SELECT id
                 FROM posts
-                WHERE posts.owneruserid = {user_id} -- Na poste vytvorenym userom s ID (parentid)
-            ) -- AND userid != 1 -- Odfiltrovanie usera na ktoreho pozerame TODO:: Podla zadania to mame mat kamarata sameho
-            -- seba
+                WHERE posts.owneruserid = {user_id} -- Post vytvorenym hladanym pouzivatelom
+            ) -- AND userid != 1 -- Odfiltrovanie usera na ktoreho pozerame TODO:: Podla zadania mame mat kamarata seba
             GROUP BY userid
         )
+        -- Alebo sa user_id nachadza v subquery userov ktory komentovali na poste na ktorom komentoval hladany pouzivatel
         OR id IN (
+            -- Ziskaj userov ktory komentovali na poste na ktorom komentoval hladany pouzivatel
             SELECT DISTINCT userid
             FROM comments
             WHERE postid IN (
                 SELECT postid
                 FROM comments
-                WHERE userid = {user_id}  -- Je ID postu kde komentoval user
-            ) -- AND userid != 1 -- Odfiltrovanie usera na ktoreho pozerame TODO:: Podla zadania to mame mat kamarata sameho
-            -- seba
+                WHERE userid = {user_id}  -- Post kde komentoval hladany pouzivatel
+            ) -- AND userid != 1 -- Odfiltrovanie usera na ktoreho pozerame TODO:: Podla zadania mame mat kamarata seba
         )
         ORDER BY users.creationdate
     """
