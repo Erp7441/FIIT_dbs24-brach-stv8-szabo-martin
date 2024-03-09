@@ -21,7 +21,12 @@ async def get_post_comments(post_id: int):
             SELECT DISTINCT ON (userid) userid, creationdate AS lastcommentcreationdate
             FROM user_comments
         )
-        SELECT users.*
+        SELECT
+            id, reputation,
+            (to_char(creationdate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF')) AS creationdate,
+            displayname,
+            (to_char(lastaccessdate::TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF')) AS lastaccessdate,
+            websiteurl, location, aboutme, views, upvotes, downvotes, profileimageurl, age, accountid
         FROM users
         JOIN unique_users ON users.id = unique_users.userid
         ORDER BY lastcommentcreationdate DESC
@@ -57,7 +62,15 @@ async def get_solved_posts(duration: int, limit: int):
             WHERE closeddate IS NOT NULL
             ORDER BY id
         )
-        SELECT posts.id, creationdate, viewcount, lasteditdate, lastactivitydate, title, closeddate, duration
+        SELECT
+            posts.id,
+            (to_char(creationdate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF')) AS creationdate,
+            viewcount,
+            (to_char(lasteditdate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF')) AS lasteditdate,
+            (to_char(lastactivitydate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF')) AS lastactivitydate,
+            title,
+            (to_char(closeddate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF')) AS closeddate,
+            duration
         FROM closed_posts_duration
         JOIN posts ON posts.id = closed_posts_duration.id
         WHERE duration <= {duration}
@@ -84,7 +97,15 @@ async def search_for_posts(limit: int, query: str):
             JOIN tags ON post_tags.tag_id = tags.id
             GROUP BY post_id
         )
-        SELECT id, creationdate, viewcount, lasteditdate, lastactivitydate, title, body, answercount, closeddate, tags
+        SELECT
+            id,
+            (to_char(creationdate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF')) AS creationdate,
+            viewcount,
+            (to_char(lasteditdate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF')) AS lasteditdate,
+            (to_char(lastactivitydate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF')) AS lastactivitydate,
+            title, body, answercount,
+            (to_char(closeddate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF')) AS closeddate,
+            tags
         FROM posts
         JOIN post_id_tags ON post_id = posts.id
         WHERE posts.title LIKE '%{query}%' OR posts.body LIKE '%{query}%'

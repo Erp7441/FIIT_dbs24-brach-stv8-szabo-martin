@@ -10,7 +10,12 @@ router = APIRouter()
 @router.get("/v2/users/{user_id}/friends")
 async def get_users_friends(user_id: int):
     query = f"""
-        SELECT *
+        SELECT
+            id, reputation,
+            (to_char(creationdate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF')) AS creationdate,
+            displayname,
+            (to_char(lastaccessdate::TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF') ) AS lastaccessdate,
+            websiteurl, location, aboutme, views, upvotes, downvotes, profileimageurl, age, accountid
         FROM users -- Vyber userov
         WHERE id IN (
             SELECT DISTINCT userid
@@ -19,7 +24,8 @@ async def get_users_friends(user_id: int):
                 SELECT id
                 FROM posts
                 WHERE posts.owneruserid = {user_id} -- Na poste vytvorenym userom s ID (parentid)
-            ) -- AND userid != {user_id} -- Odfiltrovanie usera na ktoreho pozerame TODO:: Podla zadania to mame mat kamarata sameho seba
+            ) -- AND userid != 1 -- Odfiltrovanie usera na ktoreho pozerame TODO:: Podla zadania to mame mat kamarata sameho
+            -- seba
             GROUP BY userid
         )
         OR id IN (
@@ -29,7 +35,8 @@ async def get_users_friends(user_id: int):
                 SELECT postid
                 FROM comments
                 WHERE userid = {user_id}  -- Je ID postu kde komentoval user
-            ) -- AND userid != {user_id} -- Odfiltrovanie usera na ktoreho pozerame TODO:: Podla zadania to mame mat kamarata sameho seba
+            ) -- AND userid != 1 -- Odfiltrovanie usera na ktoreho pozerame TODO:: Podla zadania to mame mat kamarata sameho
+            -- seba
         )
         ORDER BY users.creationdate
     """
