@@ -9,15 +9,20 @@ router = APIRouter()
 @router.get("/v2/posts/{post_id}/users")
 async def get_post_comments(post_id: int):
     query = f"""
-        SELECT *
-        FROM users
-        WHERE id IN (                       -- Vyber vsetko z tabulky users
-            SELECT userid
-            FROM comments                   -- o useroch v "userid" stlpci tabulky comments
-            WHERE postid = {post_id}        -- konkretneho prispevku
-            GROUP BY userid                 -- Toto zoskupi riadky podla userid (tym padom removne duplicity)
-            ORDER BY MAX(creationdate) DESC -- Zoradit od najnovsieho po najstarsi s tym ze berieme vzdy najnovejsi prispevok
+        WITH user_comments AS (
+            SELECT userid, creationdate
+            FROM comments
+            WHERE postid = {post_id}
+            ORDER BY creationdate DESC
+        ),
+        unique_users AS (
+            SELECT DISTINCT ON (userid) userid, creationdate AS lastcommentcreationdate
+            FROM user_comments
         )
+        SELECT users.*
+        FROM users
+        JOIN unique_users ON users.id = unique_users.userid
+        ORDER BY lastcommentcreationdate DESC
     """
 
     if post_id is None:
@@ -63,13 +68,13 @@ async def get_post_comments(duration: int, limit: int):
 
 @router.get("/v2/posts/")
 async def get_post_comments(limit: int, query: str):
-    query = """
+    sql_query = """
 
     """
 
     connection = get_connection(settings)
     cursor = connection.cursor()
-    cursor.execute(query)
+    cursor.execute(sql_query)
     results = get_results_as_dict(cursor)
     connection.close()
 

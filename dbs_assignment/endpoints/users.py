@@ -13,23 +13,23 @@ async def get_users_friends(user_id: int):
         SELECT *
         FROM users -- Vyber userov
         WHERE id IN (
-            SELECT userid
+            SELECT DISTINCT userid
             FROM comments
             WHERE postid IN ( -- Ktory komentovali
                 SELECT id
                 FROM posts
                 WHERE posts.owneruserid = {user_id} -- Na poste vytvorenym userom s ID (parentid)
-            )
+            ) -- AND userid != {user_id} -- Odfiltrovanie usera na ktoreho pozerame TODO:: Podla zadania to mame mat kamarata sameho seba
             GROUP BY userid
         )
         OR id IN (
-            SELECT owneruserid  -- Ziskanie user id ownerov postov
-            FROM posts
-            WHERE id IN (  -- Kde post id
+            SELECT DISTINCT userid
+            FROM comments
+            WHERE postid IN (
                 SELECT postid
                 FROM comments
                 WHERE userid = {user_id}  -- Je ID postu kde komentoval user
-            )
+            ) -- AND userid != {user_id} -- Odfiltrovanie usera na ktoreho pozerame TODO:: Podla zadania to mame mat kamarata sameho seba
         )
         ORDER BY users.creationdate
     """
