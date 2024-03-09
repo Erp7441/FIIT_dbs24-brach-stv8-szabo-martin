@@ -60,3 +60,19 @@ async def get_post_comments(duration: int, limit: int):
     return {
         'items': results
     }
+
+@router.get("/v2/posts/")
+async def get_post_comments(limit: int, query: str):
+    query = """
+
+    """
+
+    connection = get_connection(settings)
+    cursor = connection.cursor()
+    cursor.execute(query)
+    results = get_results_as_dict(cursor)
+    connection.close()
+
+    return {
+        'items': results
+    }

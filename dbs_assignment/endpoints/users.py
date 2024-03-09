@@ -9,7 +9,6 @@ router = APIRouter()
 @router.get("/v2/users/{user_id}/users")
 @router.get("/v2/users/{user_id}/friends")
 async def get_users_friends(user_id: int):
-
     query = f"""
         SELECT *
         FROM users -- Vyber userov
@@ -19,9 +18,18 @@ async def get_users_friends(user_id: int):
             WHERE postid IN ( -- Ktory komentovali
                 SELECT id
                 FROM posts
-                WHERE posts.owneruserid = 1076348 -- Na poste vytvorenym userom s ID (parentid)
+                WHERE posts.owneruserid = {user_id} -- Na poste vytvorenym userom s ID (parentid)
             )
             GROUP BY userid
+        )
+        OR id IN (
+            SELECT owneruserid  -- Ziskanie user id ownerov postov
+            FROM posts
+            WHERE id IN (  -- Kde post id
+                SELECT postid
+                FROM comments
+                WHERE userid = {user_id}  -- Je ID postu kde komentoval user
+            )
         )
         ORDER BY users.creationdate
     """
