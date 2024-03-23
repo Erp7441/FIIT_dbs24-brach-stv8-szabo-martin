@@ -54,6 +54,7 @@ async def get_users_friends(user_id: int):
     }
 
 
+# Zadanie 3 endpoint 1
 @router.get("/v3/users/{user_id}/badge_history")
 async def get_user_badge_history(user_id: int):
     query = f"""
@@ -64,6 +65,8 @@ async def get_user_badge_history(user_id: int):
             TO_CHAR(post_date AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS post_date
         FROM (
             SELECT
+                -- Filtrovanie unikatnych datumov postov kedze pokial viacero badgov bolo ziskanych za jeden
+                -- post. Mame zobrat len prvy badge ktory bol ziskany za ten komentar a vylucit ho z moznosti.
                 DISTINCT ON (post_date)
                 *
             FROM (
@@ -71,7 +74,7 @@ async def get_user_badge_history(user_id: int):
                     DISTINCT ON (badge_id)  -- Vyfiltrovanie duplikatov z subquery
                     *
                 FROM (
-                    -- Ziska badge info + komentare ktore boli vytvorene skor ako badge
+                    -- Ziska badge info + posty ktore boli vytvorene skor ako badge
                     SELECT
                         b2.id AS badge_id,
                         b2.name AS badge_name,
@@ -87,7 +90,7 @@ async def get_user_badge_history(user_id: int):
                     WHERE users.id = {user_id} AND b2.date >= p2.creationdate  -- userid je parameter
                 ) AS bp
                 ORDER BY badge_id, bp.post_date DESC  -- Toto zaruci ze zaznamy su zoradene od najnovsieho postu.
-                -- To namena ze DISTINCT na zaciatku odfiltruje vsetky stare posty
+                -- To znamena ze DISTINCT na zaciatku odfiltruje vsetky stare posty
             ) AS s
             ORDER BY post_date, post_id
         ) AS m

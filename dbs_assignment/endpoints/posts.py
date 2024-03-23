@@ -131,6 +131,7 @@ async def search_for_posts(limit: int, query: str):
     }
 
 
+# Zadanie 3 endpoint 4
 @router.get("/v3/posts/{post_id}")
 async def get_post_thread(post_id: int, limit: int):
     sql_query = f"""
@@ -139,9 +140,10 @@ async def get_post_thread(post_id: int, limit: int):
             TO_CHAR(p.creationdate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS creationdate
         FROM posts p
         LEFT JOIN users u ON p.owneruserid = u.id
+        -- Filtrovanie podla ID a parent ID postu pre ziskanie celeho threadu daneho post id.
         WHERE p.id = {post_id} OR p.parentid = {post_id}  -- Parametre
         ORDER BY p.creationdate
-        LIMIT {limit}
+        LIMIT {limit}  -- Parameter
     """
 
     connection = get_connection(settings)

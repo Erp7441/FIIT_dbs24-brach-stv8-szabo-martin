@@ -56,6 +56,7 @@ async def tag_stats(tag_name: str):
     }
 
 
+# Zadanie 3 endpoint 2
 @router.get("/v3/tags/{tag_name}/comments")
 async def get_tag_comments(tag_name: str, count: int):
     query = f"""
@@ -63,9 +64,13 @@ async def get_tag_comments(tag_name: str, count: int):
             post_id, title, displayname, text,
             TO_CHAR(posts_created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS posts_created_at,
             TO_CHAR(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS created_at,
+            -- Kedze mam datum posledneho komentu alebo vytvorenia postu v 'last_comment_date', tak sa vypocitam cas
+            -- medzi vytvorenim komentara a 'last_comment_date' ako diff. To iste aj pre average diff od prveho po
+            -- "momentalny" komentar.
             TO_CHAR((created_at - last_comment_date), 'HH24:MI:SS.MS') AS diff,
             TO_CHAR(AVG((created_at - last_comment_date)) OVER (ORDER BY created_at), 'HH24:MI:SS.MS') AS avg_diff
         FROM (
+            -- Vyber komentarov s postami usermi a tagmi.
             SELECT
                 p.id AS post_id,
                 title,
@@ -73,6 +78,7 @@ async def get_tag_comments(tag_name: str, count: int):
                 c.text AS text,
                 p.creationdate AS posts_created_at,
                 c.creationdate AS created_at,
+                -- Ziskanie datumu posledneho komentara ALEBO datumu vytvorenia postu pokial komentar neexistuje.
                 COALESCE((
                     SELECT creationdate
                     FROM comments
@@ -90,6 +96,7 @@ async def get_tag_comments(tag_name: str, count: int):
                 LEFT JOIN users u ON c.userid = u.id
                 JOIN post_tags pt on p.id = pt.post_id
                 JOIN tags t on t.id = pt.tag_id
+            -- Filtrovanie tagu a poctu komentarov na poste
             WHERE tagname = '{tag_name}' AND p.commentcount > {count}  -- Parametre
         ) AS m
         ORDER BY posts_created_at, created_at
@@ -109,27 +116,33 @@ async def get_tag_comments(tag_name: str, count: int):
     }
 
 
+# Zadanie 3 endpoint 3
 @router.get("/v3/tags/{tag_name}/comments/{position}")
 async def get_tag_k_comments(tag_name: str, position: int, limit: int):
     query = f"""
         SELECT
-            id, displayname, body, text, score,
-            position + {position} AS position  -- Parameter
+            id, displayname, body, text, score, position
         FROM (
+            -- Tabulka kde si najoinujem dohromady komentare, posty ktorym patria, tagoch tych postov a userov ktory
+            -- vytvorili ten komentar
             SELECT
                 c.id AS id,
                 displayname, body, text,
                 c.score AS score,
-                (ROW_NUMBER() OVER (ORDER BY c.id)) % {position} AS position, -- Parameter
+                -- Kalkulacia pozicie komentara v tabulke comments pomocou row number window funkcie
+                -- Pozicia komentara je relativna v ramci postu
+                ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY c.id) AS position,
                 TO_CHAR(p.creationdate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS creationdate
             FROM comments c
             JOIN posts p ON c.postid = p.id
             JOIN post_tags pt on pt.post_id = p.id
             JOIN tags t on pt.tag_id = t.id
             LEFT JOIN users ON c.userid = users.id
+            -- Odfiltrovanie podla tagnamu
             WHERE tagname = '{tag_name}'  -- Parameter
         ) AS s
-        WHERE position % {position} = 0  -- Parameter
+        -- Filtrovanie kazdeho K komentara podla pozicie
+        WHERE position = {position}  -- Parameter
         ORDER BY creationdate
         LIMIT {limit}  -- Parameter
     """
