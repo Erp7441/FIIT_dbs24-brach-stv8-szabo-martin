@@ -62,7 +62,7 @@ V subquery si napojím ku komentárom post ktorému patria, usera ktorý ho vytv
 Následne odfiltrujem 'tagname' a počet komentárov na poste. V selecte tejto subquery pomocou 'COALESCE' pridám nový
 stĺpec 'last_comment_date' ktorý obsahuje dátum komentáru ktorý bol vytvorený pred 'aktuálnym' komentárom. V
 hlavnej query potom zoradím podľa 'post_created_at' a využijem 'last_comment_date' stĺpec na výpočet 'diff' a získanie
-'avg_diff' pomocou window function.
+'avg' pomocou window function.
 
 ```sql
 SELECT
@@ -73,7 +73,8 @@ SELECT
 	-- medzi vytvorenim komentara a 'last_comment_date' ako diff. To iste aj pre average diff od prveho po
 	-- "momentalny" komentar.
 	TO_CHAR((created_at - last_comment_date), 'HH24:MI:SS.MS') AS diff,
-	TO_CHAR(AVG((created_at - last_comment_date)) OVER (ORDER BY created_at), 'HH24:MI:SS.MS') AS avg_diff
+	TO_CHAR(AVG((created_at - last_comment_date)) OVER (PARTITION BY post_id ORDER BY created_at), 'HH24:MI:SS.MS') AS
+	avg_diff
 FROM (
 	-- Vyber komentarov s postami usermi a tagmi.
 	SELECT

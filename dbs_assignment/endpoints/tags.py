@@ -62,13 +62,14 @@ async def get_tag_comments(tag_name: str, count: int):
     query = f"""
         SELECT
             post_id, title, displayname, text,
-            TO_CHAR(posts_created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS posts_created_at,
+            TO_CHAR(post_created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS post_created_at,
             TO_CHAR(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS created_at,
             -- Kedze mam datum posledneho komentu alebo vytvorenia postu v 'last_comment_date', tak sa vypocitam cas
             -- medzi vytvorenim komentara a 'last_comment_date' ako diff. To iste aj pre average diff od prveho po
             -- "momentalny" komentar.
             TO_CHAR((created_at - last_comment_date), 'HH24:MI:SS.MS') AS diff,
-            TO_CHAR(AVG((created_at - last_comment_date)) OVER (ORDER BY created_at), 'HH24:MI:SS.MS') AS avg_diff
+            TO_CHAR(AVG((created_at - last_comment_date)) OVER (PARTITION BY post_id ORDER BY created_at),
+            'HH24:MI:SS.MS') AS avg
         FROM (
             -- Vyber komentarov s postami usermi a tagmi.
             SELECT
@@ -76,7 +77,7 @@ async def get_tag_comments(tag_name: str, count: int):
                 title,
                 displayname,
                 c.text AS text,
-                p.creationdate AS posts_created_at,
+                p.creationdate AS post_created_at,
                 c.creationdate AS created_at,
                 -- Ziskanie datumu posledneho komentara ALEBO datumu vytvorenia postu pokial komentar neexistuje.
                 COALESCE((
@@ -99,7 +100,7 @@ async def get_tag_comments(tag_name: str, count: int):
             -- Filtrovanie tagu a poctu komentarov na poste
             WHERE tagname = '{tag_name}' AND p.commentcount > {count}  -- Parametre
         ) AS m
-        ORDER BY posts_created_at, created_at
+        ORDER BY post_created_at, created_at
     """
 
     if tag_name is None or count is None:
