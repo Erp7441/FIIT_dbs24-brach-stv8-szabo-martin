@@ -62,7 +62,7 @@ V subquery si napojím ku komentárom post ktorému patria, usera ktorý ho vytv
 Následne odfiltrujem 'tagname' a počet komentárov na poste. V selecte tejto subquery pomocou 'COALESCE' pridám nový
 stĺpec 'last_comment_date' ktorý obsahuje dátum komentáru ktorý bol vytvorený pred 'aktuálnym' komentárom. V
 hlavnej query potom zoradím podľa 'post_created_at' a využijem 'last_comment_date' stĺpec na výpočet 'diff' a získanie
-'avg' pomocou window function.
+'avg' pomocou window function. Partition by v window funkcii zabezpeci ze avg sa pocita len v ramci postu.
 
 ```sql
 SELECT
