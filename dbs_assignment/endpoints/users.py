@@ -52,3 +52,73 @@ async def get_users_friends(user_id: int):
     return {
         'items': results
     }
+
+
+@router.get("/v3/users/{user_id}/badge_history")
+async def get_user_badge_history(user_id: int):
+    query = f"""
+        SELECT
+            badge_id, badge_name,
+            TO_CHAR(badge_date AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS badge_date,
+            post_id, post_title,
+            TO_CHAR(post_date AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS post_date
+        FROM (
+            SELECT
+                DISTINCT ON (post_date)
+                *
+            FROM (
+                SELECT
+                    DISTINCT ON (badge_id)  -- Vyfiltrovanie duplikatov z subquery
+                    *
+                FROM (
+                    -- Ziska badge info + komentare ktore boli vytvorene skor ako badge
+                    SELECT
+                        b2.id AS badge_id,
+                        b2.name AS badge_name,
+                        b2.date AS badge_date,
+                        p2.id AS post_id,
+                        p2.creationdate AS post_date,
+                        p2.title AS post_title
+                    -- Vytvori tabulu s infom o useroch, ich badges a ich postoch
+                    FROM users
+                        JOIN badges b2 ON users.id = b2.userid
+                        JOIN posts p2 ON p2.owneruserid = b2.userid
+                    -- Filtrovanie userid a vsetkych postov ktore boli vytvorene skor ako badge
+                    WHERE users.id = {user_id} AND b2.date >= p2.creationdate  -- userid je parameter
+                ) AS bp
+                ORDER BY badge_id, bp.post_date DESC  -- Toto zaruci ze zaznamy su zoradene od najnovsieho postu.
+                -- To namena ze DISTINCT na zaciatku odfiltruje vsetky stare posty
+            ) AS s
+            ORDER BY post_date, post_id
+        ) AS m
+    """
+
+    if user_id is None:
+        return {"error": "user_id is required"}
+
+    connection = get_connection(settings)
+    cursor = connection.cursor()
+    cursor.execute(query)
+    results = get_results_as_dict(cursor)
+    connection.close()
+    formatted_results = []
+
+    for result in results:
+        formatted_results.append({
+            'id': result['post_id'],
+            'title': result['post_title'],
+            'type': 'post',
+            'created_at': result['post_date'],
+            'position': results.index(result)+1
+        })
+        formatted_results.append({
+            'id': result['badge_id'],
+            'title': result['badge_name'],
+            'type': 'badge',
+            'created_at': result['badge_date'],
+            'position': results.index(result)+1
+        })
+
+    return {
+        'items': formatted_results
+    }

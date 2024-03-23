@@ -129,3 +129,27 @@ async def search_for_posts(limit: int, query: str):
     return {
         'items': results
     }
+
+
+@router.get("/v3/posts/{post_id}")
+async def get_post_thread(post_id: int, limit: int):
+    sql_query = f"""
+        SELECT
+            displayname, body,
+            TO_CHAR(p.creationdate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS creationdate
+        FROM posts p
+        LEFT JOIN users u ON p.owneruserid = u.id
+        WHERE p.id = {post_id} OR p.parentid = {post_id}  -- Parametre
+        ORDER BY p.creationdate
+        LIMIT {limit}
+    """
+
+    connection = get_connection(settings)
+    cursor = connection.cursor()
+    cursor.execute(sql_query)
+    results = get_results_as_dict(cursor)
+    connection.close()
+
+    return {
+        'items': results
+    }

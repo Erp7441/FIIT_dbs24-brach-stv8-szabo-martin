@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from dbs_assignment.utils import get_results_as_kev_val_pair, get_connection
+from dbs_assignment.utils import get_results_as_kev_val_pair, get_results_as_dict, get_connection
 
 from dbs_assignment.config import settings
 
@@ -43,7 +43,7 @@ async def tag_stats(tag_name: str):
     """
 
     if tag_name is None:
-        return {"error": "post_id is required"}
+        return {"error": "tag_name is required"}
 
     connection = get_connection(settings)
     cursor = connection.cursor()
@@ -53,4 +53,96 @@ async def tag_stats(tag_name: str):
 
     return {
         'result': results
+    }
+
+
+@router.get("/v3/tags/{tag_name}/comments")
+async def get_tag_comments(tag_name: str, count: int):
+    query = f"""
+        SELECT
+            post_id, title, displayname, text,
+            TO_CHAR(posts_created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS posts_created_at,
+            TO_CHAR(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS created_at,
+            TO_CHAR((created_at - last_comment_date), 'HH24:MI:SS.MS') AS diff,
+            TO_CHAR(AVG((created_at - last_comment_date)) OVER (ORDER BY created_at), 'HH24:MI:SS.MS') AS avg_diff
+        FROM (
+            SELECT
+                p.id AS post_id,
+                title,
+                displayname,
+                c.text AS text,
+                p.creationdate AS posts_created_at,
+                c.creationdate AS created_at,
+                COALESCE((
+                    SELECT creationdate
+                    FROM comments
+                    WHERE postid = p.id AND creationdate < c.creationdate
+                    ORDER BY creationdate DESC
+                    LIMIT 1
+                ),(
+                    SELECT creationdate
+                    FROM posts
+                    WHERE id = p.id
+                )) AS last_comment_date
+            FROM
+                comments c
+                JOIN posts p ON c.postid = p.id
+                LEFT JOIN users u ON c.userid = u.id
+                JOIN post_tags pt on p.id = pt.post_id
+                JOIN tags t on t.id = pt.tag_id
+            WHERE tagname = '{tag_name}' AND p.commentcount > {count}  -- Parametre
+        ) AS m
+        ORDER BY posts_created_at, created_at
+    """
+
+    if tag_name is None or count is None:
+        return {"error": "Missing parameters."}
+
+    connection = get_connection(settings)
+    cursor = connection.cursor()
+    cursor.execute(query)
+    results = get_results_as_dict(cursor)
+    connection.close()
+
+    return {
+        'items': results
+    }
+
+
+@router.get("/v3/tags/{tag_name}/comments/{position}")
+async def get_tag_k_comments(tag_name: str, position: int, limit: int):
+    query = f"""
+        SELECT
+            id, displayname, body, text, score,
+            position + {position} AS position  -- Parameter
+        FROM (
+            SELECT
+                c.id AS id,
+                displayname, body, text,
+                c.score AS score,
+                (ROW_NUMBER() OVER (ORDER BY c.id)) % {position} AS position, -- Parameter
+                TO_CHAR(p.creationdate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS creationdate
+            FROM comments c
+            JOIN posts p ON c.postid = p.id
+            JOIN post_tags pt on pt.post_id = p.id
+            JOIN tags t on pt.tag_id = t.id
+            LEFT JOIN users ON c.userid = users.id
+            WHERE tagname = '{tag_name}'  -- Parameter
+        ) AS s
+        WHERE position % {position} = 0  -- Parameter
+        ORDER BY creationdate
+        LIMIT {limit}  -- Parameter
+    """
+
+    if tag_name is None or position is None or limit is None:
+        return {"error": "Missing parameters."}
+
+    connection = get_connection(settings)
+    cursor = connection.cursor()
+    cursor.execute(query)
+    results = get_results_as_dict(cursor)
+    connection.close()
+
+    return {
+        'items': results
     }
