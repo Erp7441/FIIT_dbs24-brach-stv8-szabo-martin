@@ -151,7 +151,7 @@ aj s údajmi ownera.
 ```sql
 SELECT
 	displayname, body,
-	TO_CHAR(p.creationdate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS creationdate
+	TO_CHAR(p.creationdate AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MSOF:TZM') AS created_at
 FROM posts p
 LEFT JOIN users u ON p.owneruserid = u.id
 -- Filtrovanie podla ID a parent ID postu pre ziskanie celeho threadu daneho post id.
